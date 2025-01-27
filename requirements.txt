@@ -3,3 +3,4 @@ opencv-python-headless
 numpy
 pandas
 opencv-contrib-python-headless
+mediapipe==0.10.5
