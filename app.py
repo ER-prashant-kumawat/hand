@@ -50,7 +50,12 @@ if st.button("Start Camera"):
     frame_placeholder = st.empty()
     
     # Open the webcam for capturing video
-    cap = cv2.VideoCapture(2)
+    
+    cap = cv2.VideoCapture(0)  # or try another index
+    if not cap.isOpened():
+        st.error("Camera not found. Please check your camera settings.")
+    else:
+        st.success("Camera is ready!")
     
     last_detection_time = 0
     COOLDOWN = 2  # cooldown time for gesture detection
