@@ -1,7 +1,6 @@
 import streamlit as st
 import cv2
 import mediapipe as mp
-import numpy as np
 import time
 
 # Set up Streamlit page
@@ -49,33 +48,25 @@ def check_lion_gesture(hand_landmarks):
 with st.sidebar:
     st.header("Instructions")
     st.markdown("""
-    1. Upload a video file of your hand gestures.
-    2. The app will process the video and detect the 'lion gesture':
+    1. Click 'Start Camera' to capture your live hand gesture.
+    2. Show your hand like a lion's claw:
         - All fingers extended
-        - Slightly curved like a lion's claw
-    3. Detection results will be displayed on the video frames.
+        - Slightly curved
+    3. The app will detect the gesture and display results on the frame.
+    4. Press 'Stop' when done.
     """)
 
-# Video uploader
-uploaded_video = st.file_uploader("Upload a video file", type=["mp4", "mov", "avi"])
+# Camera input (for online deployment)
+frame_placeholder = st.empty()
 
-if uploaded_video is not None:
-    # Save uploaded video to a temporary file
-    tfile = tempfile.NamedTemporaryFile(delete=False)
-    tfile.write(uploaded_video.read())
-    cap = cv2.VideoCapture(tfile.name)
+# Camera start button
+if st.button("Start Camera"):
+    video_input = st.camera_input("Take a picture")
 
-    frame_placeholder = st.empty()
-    status_placeholder = st.empty()
-
-    last_detection_time = 0
-    COOLDOWN = 2
-
-    while cap.isOpened():
-        success, img = cap.read()
-        if not success:
-            break
-
+    if video_input is not None:
+        # Process the captured image frame
+        img = cv2.imdecode(np.frombuffer(video_input.getvalue(), np.uint8), cv2.IMREAD_COLOR)
+        
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = hands.process(imgRGB)
 
@@ -86,23 +77,17 @@ if uploaded_video is not None:
                 mp_draw.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
                 if check_lion_gesture(hand_landmarks):
-                    current_time = time.time()
-                    if current_time - last_detection_time >= COOLDOWN:
-                        last_detection_time = current_time
-                        status_text = "ROAR!!!"
-                        # Add visual effect
-                        cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 0, 255), 10)
-                    else:
-                        status_text = "Lion Gesture Detected!"
-
-        # Add status text to the frame
+                    status_text = "ROAR!!!"
+                    # Add visual effect
+                    cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 0, 255), 10)
+                else:
+                    status_text = "Lion Gesture Detected!"
+        
+        # Add status text
         cv2.putText(img, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-        # Display the video frame
+        
+        # Display the frame with status
         frame_placeholder.image(img, channels="BGR")
-        status_placeholder.text(status_text)
+    else:
+        st.info("Waiting for camera input...")
 
-    cap.release()
-    st.success("Video processing complete!")
-else:
-    st.info("Please upload a video file to start detection.")
