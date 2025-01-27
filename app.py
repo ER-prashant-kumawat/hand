@@ -51,7 +51,7 @@ if st.button("Start Camera"):
     
     # Open the webcam for capturing video
     
-    cap = cv2.VideoCapture(0)  # or try another index
+    cap = cv2.VideoCapture(1)  # or try another index
     if not cap.isOpened():
         st.error("Camera not found. Please check your camera settings.")
     else:
