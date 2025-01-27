@@ -50,7 +50,7 @@ if st.button("Start Camera"):
     frame_placeholder = st.empty()
     
     # Open the webcam for capturing video
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     
     last_detection_time = 0
     COOLDOWN = 2  # cooldown time for gesture detection
