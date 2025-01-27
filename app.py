@@ -11,7 +11,7 @@ st.title("🦁 Lion Gesture Detection")
 @st.cache_resource
 def setup_mediapipe():
     mp_hands = mp.solutions.hands
-    hands = mp_hands.Hands(min_detection_confidence=0.7)
+    hands = mp_hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.5)
     mp_draw = mp.solutions.drawing_utils
     return mp_hands, hands, mp_draw
 
@@ -44,53 +44,58 @@ def check_lion_gesture(hand_landmarks):
     
     return is_lion_gesture
 
-# Sidebar instructions
-with st.sidebar:
-    st.header("Instructions")
-    st.markdown("""
-    1. Click 'Start Camera' button
-    2. Show your hand like a lion's claw:
-        - All fingers extended
-        - Slightly curved
-    3. When the gesture is detected, a visual alert will show.
-    4. Press 'Stop' button to end.
-    """)
-
-# Camera input placeholder
-frame_placeholder = st.empty()
-
 # Start Camera button
 if st.button("Start Camera"):
+    # Create a placeholder for video frames
+    frame_placeholder = st.empty()
+    
+    # Open the webcam for capturing video
+    cap = cv2.VideoCapture(0)
+    
     last_detection_time = 0
-    COOLDOWN = 2
+    COOLDOWN = 2  # cooldown time for gesture detection
     
-    # Use Streamlit's camera_input for webcam access
-    camera_input = st.camera_input("Take a snapshot")
-    
-    if camera_input is not None:
-        # Process the image from the camera input
-        img = cv2.imdecode(camera_input.getvalue(), cv2.IMREAD_COLOR)
-        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        # Flip the frame horizontally for natural interaction
+        frame = cv2.flip(frame, 1)
+        
+        # Convert the image to RGB (as OpenCV uses BGR)
+        imgRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Process the frame using Mediapipe
         results = hands.process(imgRGB)
         
         status_text = "Waiting for Lion Gesture..."
         
         if results.multi_hand_landmarks:
             for hand_landmarks in results.multi_hand_landmarks:
-                mp_draw.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+                mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
                 
                 if check_lion_gesture(hand_landmarks):
                     current_time = time.time()
                     if current_time - last_detection_time >= COOLDOWN:
                         last_detection_time = current_time
                         status_text = "ROAR!!!"
-                        # Add visual effect
-                        cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 0, 255), 10)
+                        # Add a visual alert (red border)
+                        cv2.rectangle(frame, (0, 0), (frame.shape[1], frame.shape[0]), (0, 0, 255), 10)
                     else:
                         status_text = "Lion Gesture Detected!"
         
-        # Add status text
-        cv2.putText(img, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        # Add status text on the frame
+        cv2.putText(frame, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         
-        # Display the processed image
-        frame_placeholder.image(img, channels="BGR")
+        # Show the frame in Streamlit
+        frame_placeholder.image(frame, channels="BGR")
+        
+        # Stop the loop if 'Stop Camera' button is pressed
+        if st.button("Stop Camera"):
+            cap.release()
+            break
+    
+    # Release the camera when done
+    cap.release()
+
