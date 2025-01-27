@@ -12,7 +12,7 @@ st.title("🦁 Lion Gesture Detection")
 @st.cache_resource
 def setup_mediapipe():
     mp_hands = mp.solutions.hands
-    hands = mp_hands.Hands(min_detection_confidence=0.7)
+    hands = mp_hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.7)
     mp_draw = mp.solutions.drawing_utils
     return mp_hands, hands, mp_draw
 
@@ -49,12 +49,12 @@ def check_lion_gesture(hand_landmarks):
 with st.sidebar:
     st.header("Instructions")
     st.markdown("""
-    1. Click 'Start Camera' to capture your live hand gesture.
+    1. Click 'Start Camera' to begin detecting gestures.
     2. Show your hand like a lion's claw:
         - All fingers extended
         - Slightly curved
     3. The app will detect the gesture and display results on the frame.
-    4. Press 'Stop' when done.
+    4. Press 'Stop' to end the detection.
     """)
 
 # Camera input (for online deployment)
@@ -62,11 +62,17 @@ frame_placeholder = st.empty()
 
 # Camera start button
 if st.button("Start Camera"):
-    video_input = st.camera_input("Take a picture")
-
-    if video_input is not None:
-        # Convert the uploaded image buffer into a numpy array (OpenCV format)
-        img = cv2.imdecode(np.frombuffer(video_input.getvalue(), np.uint8), cv2.IMREAD_COLOR)
+    cap = cv2.VideoCapture(0)  # Access the webcam
+    last_detection_time = 0
+    COOLDOWN = 2  # Avoid continuous detection without cooldown
+    
+    stop_button = st.button("Stop")
+    
+    while cap.isOpened() and not stop_button:
+        success, img = cap.read()
+        if not success:
+            st.warning("Unable to access webcam")
+            break
         
         # Convert image to RGB (required for MediaPipe)
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -83,16 +89,21 @@ if st.button("Start Camera"):
 
                 # Check if lion gesture is detected
                 if check_lion_gesture(hand_landmarks):
-                    status_text = "ROAR!!!"
-                    # Add visual effect
-                    cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 0, 255), 10)
-                else:
-                    status_text = "Lion Gesture Detected!"
+                    current_time = time.time()
+                    if current_time - last_detection_time >= COOLDOWN:
+                        status_text = "ROAR!!!"
+                        last_detection_time = current_time
+                        # Add visual effect
+                        cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), (0, 0, 255), 10)
+                    else:
+                        status_text = "Lion Gesture Detected!"
         
         # Add status text
         cv2.putText(img, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
         # Display the frame with status
-        frame_placeholder.image(img, channels="BGR")
-    else:
-        st.info("Waiting for camera input...")
+        frame_placeholder.image(img, channels="BGR", use_column_width=True)
+    
+    cap.release()  # Release the camera when done
+    frame_placeholder.empty()
+    st.success("Camera stopped")
