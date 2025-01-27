@@ -1,6 +1,7 @@
 import streamlit as st
 import cv2
 import mediapipe as mp
+import numpy as np
 import time
 
 # Set up Streamlit page
@@ -64,18 +65,23 @@ if st.button("Start Camera"):
     video_input = st.camera_input("Take a picture")
 
     if video_input is not None:
-        # Process the captured image frame
+        # Convert the uploaded image buffer into a numpy array (OpenCV format)
         img = cv2.imdecode(np.frombuffer(video_input.getvalue(), np.uint8), cv2.IMREAD_COLOR)
         
+        # Convert image to RGB (required for MediaPipe)
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        
+        # Process image with MediaPipe Hands
         results = hands.process(imgRGB)
 
         status_text = "Waiting for Lion Gesture..."
 
         if results.multi_hand_landmarks:
             for hand_landmarks in results.multi_hand_landmarks:
+                # Draw landmarks on the image
                 mp_draw.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
+                # Check if lion gesture is detected
                 if check_lion_gesture(hand_landmarks):
                     status_text = "ROAR!!!"
                     # Add visual effect
@@ -90,4 +96,3 @@ if st.button("Start Camera"):
         frame_placeholder.image(img, channels="BGR")
     else:
         st.info("Waiting for camera input...")
-
